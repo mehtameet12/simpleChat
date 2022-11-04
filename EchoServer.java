@@ -3,6 +3,10 @@
 // license found at www.lloseng.com 
 
 
+import java.io.IOException;
+import java.util.Scanner;
+
+import common.ChatIF;
 import ocsf.server.*;
 
 /**
@@ -22,7 +26,13 @@ public class EchoServer extends AbstractServer
   /**
    * The default port to listen on.
    */
-  final public static int DEFAULT_PORT = 5555;
+  //final public static int DEFAULT_PORT = 5555;
+  
+  /**
+   * The interface type variable.  It allows the implementation of 
+   * the display method in the server.
+   */
+  ChatIF serverUI;
   
   //Constructors ****************************************************
   
@@ -31,7 +41,13 @@ public class EchoServer extends AbstractServer
    *
    * @param port The port number to connect on.
    */
-  public EchoServer(int port) 
+  public EchoServer(int port, ChatIF serverUI) throws IOException
+  {
+    super(port);
+    this.serverUI = serverUI;
+  }
+  
+  public EchoServer(int port) throws IOException
   {
     super(port);
   }
@@ -39,18 +55,88 @@ public class EchoServer extends AbstractServer
   
   //Instance methods ************************************************
   
-  /**
+ 
+
+
+/**
    * This method handles any messages received from the client.
    *
    * @param msg The message received from the client.
    * @param client The connection from which the message originated.
    */
-  public void handleMessageFromClient
-    (Object msg, ConnectionToClient client)
+  public void handleMessageFromClient (Object msg, ConnectionToClient client)
   {
     System.out.println("Message received: " + msg + " from " + client);
     this.sendToAllClients(msg);
   }
+  
+  public void handleMessageFromServerUI(String message) {
+	  
+	  serverUI.display(message);
+	  
+	  if(message.startsWith("#")) {
+		  handleCommand(message);
+	  }else {
+		  sendToAllClients(message);
+	  }
+  }
+  
+  private void handleCommand(String command) {
+	  int port;
+	  Scanner fromConsole = new Scanner (System.in);
+	  if (command.equals("#quit")) {
+		  System.out.println("Server is now closed!");
+		  quit();
+	  }
+	  else if(command.equals("#stop")) {
+		  stopListening();
+	  }
+	  else if(command.equals("#close")){
+		  stopListening();
+		  quit();
+	  }
+	  else if(command.equals("#setport")){
+		  if(getClientConnections().equals(0)) {
+			  System.out.println("Enter the name of the port");
+			  port = fromConsole.nextInt();
+			  setPort(port);
+		  }else {
+			  System.out.println("Server still has some clients connected");
+		  }
+	  }
+	  else if(command.equals("#start")){
+		  if(!isListening()) {
+			  try {
+				listen();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		  }else {
+			  System.out.println("Server is already listening!");
+		  }
+	  }
+	  else if(command.equals("#getport")) {
+		  getPort();
+	  }else {
+		  sendToAllClients("Incorrect Command, please use the correct set of commands!");
+	  }
+  }
+  
+  /**
+   * This method terminates the client.
+   */
+  public void quit()
+  {
+    try
+    {
+      close();
+    }
+    catch(IOException e) {}
+    System.exit(0);
+  }
+  
+
     
   /**
    * This method overrides the one in the superclass.  Called
@@ -74,6 +160,7 @@ public class EchoServer extends AbstractServer
   
   //Class methods ***************************************************
   
+  
   /**
    * This method is responsible for the creation of 
    * the server instance (there is no UI in this phase).
@@ -81,29 +168,71 @@ public class EchoServer extends AbstractServer
    * @param args[0] The port number to listen on.  Defaults to 5555 
    *          if no argument is entered.
    */
-  public static void main(String[] args) 
-  {
-    int port = 0; //Port to listen on
-
-    try
-    {
-      port = Integer.parseInt(args[0]); //Get port from command line
-    }
-    catch(Throwable t)
-    {
-      port = DEFAULT_PORT; //Set port to 5555
-    }
-	
-    EchoServer sv = new EchoServer(port);
-    
-    try 
-    {
-      sv.listen(); //Start listening for connections
-    } 
-    catch (Exception ex) 
-    {
-      System.out.println("ERROR - Could not listen for clients!");
-    }
+//  public static void main(String[] args) 
+//  {
+//    int port = 0; //Port to listen on
+//
+//    try
+//    {
+//      port = Integer.parseInt(args[0]); //Get port from command line
+//    }
+//    catch(Throwable t)
+//    {
+//      port = DEFAULT_PORT; //Set port to 5555
+//    }
+//	
+//    EchoServer sv = new EchoServer(port);
+//    
+//    try 
+//    {
+//      sv.listen(); //Start listening for connections
+//    } 
+//    catch (Exception ex) 
+//    {
+//      System.out.println("ERROR - Could not listen for clients!");
+//    }
+//  }
+  
+  /**
+   * Implement hook method called each time a new client connection is
+   * accepted. The default implementation does nothing.
+   * @param client the connection connected to the client.
+   */
+  @Override
+  protected void clientConnected(ConnectionToClient client) {
+	  System.out.println("The client " + client + ", is now connected!");
   }
+  
+  /**
+   * Implement hook method called each time a client disconnects.
+   * The default implementation does nothing. The method
+   * may be overridden by subclasses but should remains synchronized.
+   *
+   * @param client the connection with the client.
+ * @throws IOException 
+   */
+  @Override
+  synchronized protected void clientDisconnected(
+    ConnectionToClient client)
+  {
+	  System.out.println("The client " + client + ", is now disconnected!");
+  }
+  
+  /**
+   * Implement hook method called each time an exception is thrown in a
+   * ConnectionToClient thread.
+   * The method may be overridden by subclasses but should remains
+   * synchronized.
+   *
+   * @param client the client that raised the exception.
+   * @param Throwable the exception thrown.
+   */
+  @Override
+  synchronized protected void clientException(
+    ConnectionToClient client, Throwable exception) {
+		 clientDisconnected(client);
+  }
+  
+  
 }
 //End of EchoServer class
