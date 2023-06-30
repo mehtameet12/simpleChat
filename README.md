@@ -1,3 +1,4 @@
+**Simple Chat Application**
 This is a simple chat interface that uses OCSF (Object Client/Server Framework) to show show the relay of messages between the client and the server.
 
 To run the SimpleChat, 
